@@ -1,0 +1,148 @@
+<style>
+body { min-width: 490px; }
+#ragingNetflixQueue { width: 300px; margin: 0 auto; }
+</style>
+<script>
+// WHAT IS THIS???
+chrome.tabs.executeScript(null, {file: "content_script.js"});
+
+chrome.tabs.getSelected(null, function(tab) {
+    var port = chrome.tabs.connect(tab.id);
+    port.onMessage.addListener(function(response)
+    {
+        if(response.movieTitle) {
+            RagingNetflixQueue.executeSearch(response.movieTitle.trim(), response.movieYear);
+        } else {
+            document.getElementById(RagingNetflixQueue.contentId).innerHTML = 'This is not a supported movie details page.';
+        }
+    });
+});
+
+RagingNetflixQueue = {
+    lastSearch: {},
+    searchCounter: 0,
+    contentId: 'ragingNetflixQueue',
+    odataSearchId: 'ragingNetflixQueueOdata',
+    repeatLastSearchWithThePrefix: function()
+    {
+        var script = document.getElementById(RagingNetflixQueue.odataSearchId);
+        script.parentNode.removeChild(script);
+
+        var last = RagingNetflixQueue.lastSearch;
+        if(last.title.toLowerCase().indexOf('the') !== 0) {
+            RagingNetflixQueue.executeSearch('The ' + last.title, last.year);
+        }
+    },
+    executeSearch: function(title, year)
+    {
+        if(title && !document.getElementById(RagingNetflixQueue.odataSearchId) && RagingNetflixQueue.searchCounter <= 2) {
+            RagingNetflixQueue.lastSearch = {
+                title: title,
+                year: year
+            };
+
+            RagingNetflixQueue.searchCounter++;
+
+            var script = document.createElement('script');
+            script.setAttribute('id', RagingNetflixQueue.odataSearchId);
+            script.async = true;
+            // Cedar Rapids (2011) on Rotten Tomatoes, but Netflix thought Cedar Rapids (2010)
+            script.src = 'http://odata.netflix.com/Catalog/Titles?$filter=Name eq \'' + title + '\'' +
+                (year ? ' and ReleaseYear ge ' + (year - 1) + ' and ReleaseYear le ' + (year + 1) : '') + '&$format=json&$callback=RagingNetflixQueue.searchResults';
+
+            document.body.appendChild(script);
+        }
+    },
+    searchResults: function(odata) {
+        var results = odata.d.results,
+            html = [],
+            scripts = [],
+            content = document.getElementById(RagingNetflixQueue.contentId);
+    
+        if(!results.length) {
+            // Debug
+            content.innerHTML = '<a href="' + document.getElementById(RagingNetflixQueue.odataSearchId).getAttribute('src') + '" target="_blank">No movies found.</a>';
+
+            RagingNetflixQueue.repeatLastSearchWithThePrefix();
+        } else {
+            // for now we only use the first result.
+            results.slice(0, 1).forEach(function(result, index)
+            {
+                html.push(['<a href="http://movi.es/',
+                            result.Id,
+                            '" title="',
+                            result.Name,
+                            '">',
+                            result.Name,
+                            '</a>'].join(''));
+
+                scripts.push(result.Id);
+            });
+        
+            content.innerHTML = html.join('');
+        
+            scripts.forEach(function(id, index)
+            {
+                var script = document.createElement('script');
+                script.src = 'http://jsapi.netflix.com/us/api/w/s/sp100.js';
+                script.setAttribute('settings', 'id=http://movi.es/' + id + '&w=300&h=n&r=1');
+                script.addEventListener('load', RagingNetflixQueue.clickDefaultButton, false);
+                content.appendChild(script);
+            });
+        }
+    },
+    clickDefaultButton: function()
+    {
+        var widgetId = document.querySelector('#' + RagingNetflixQueue.contentId + ' > div').getAttribute('id');
+        if(!widgetId) {
+            window.setTimeout(RagingNetflixQueue.clickDefaultButton, 100);
+            return;
+        }
+    
+        function isAvailable(button)
+        {
+            return !button.classList.contains('x');
+        }
+    
+        var buttonOptions = ['save', 'add', 'play', 'later'],
+            buttons = {},
+            netflix = window[widgetId];
+    
+        buttonOptions.forEach(function(option)
+        {
+            var button = document.getElementById(widgetId + '_' + option);
+            if(isAvailable(button)) {
+                buttons[option] = true;
+            }
+        });
+    
+        if(buttons.save) {
+            netflix.f.exhi('save');
+            RagingNetflixQueue.showIframe();
+            RagingNetflixQueue.watchForIframeHide();
+        } else if(buttons.later) {
+            netflix.f.exhi('later');
+            RagingNetflixQueue.showIframe();
+            RagingNetflixQueue.watchForIframeHide();
+        } else if(buttons.add) {
+            netflix.f.exhi('add');
+            RagingNetflixQueue.showIframe();
+            RagingNetflixQueue.watchForIframeHide();
+        }
+    },
+    showIframe: function()
+    {
+        // some sort of timing bug with autopositioning.
+        document.querySelector('div.nflx-iframe-container').style.top = 0;
+    },
+    watchForIframeHide: function()
+    {
+        if(document.querySelector('div.nflx-iframe-container').style.display == 'none') {
+            window.close();
+        } else {
+            window.setTimeout(RagingNetflixQueue.watchForIframeHide, 200);
+        }
+    }
+};
+</script>
+<div id="ragingNetflixQueue">Loading...</div>

@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+    <head>
+        <script>
+        chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab)
+        {
+            var matches = ['rottentomatoes.com/m/',
+                            'imdb.com/title/',
+                            'google.com/movies?',
+                            'trailers.apple.com/trailers/',
+                            'moviefone.com/movie/',
+                            'movies.com/',
+                            'movies.yahoo.com/movie/',
+                            'fandango.com/'];
+
+            matches.forEach(function(url) 
+            {
+                if(tab.url.indexOf(url) > -1) {
+                    chrome.pageAction.show(tabId);
+                }
+            });
+        });
+        </script>
+    </head>
+</html>

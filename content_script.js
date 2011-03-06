@@ -11,7 +11,8 @@ chrome.extension.onConnect.addListener(function(port)
             movies: /movies\.com\//,
             yahoomovies: /movies\.yahoo\.com\/movie\/\d*\/video/,
             yahooinfo: /movies\.yahoo\.com\/movie\/\d*\/info/,
-            fandango: /fandango\.com\/[\w\d_]*\/movieoverview/
+            fandango: /fandango\.com\/[\w\d_]*\/movieoverview/,
+            reelviews: /reelviews\.net\/php_review_template\.php/
         },
         titleSelectors = {
             rt: 'h1.movie_title',
@@ -22,13 +23,15 @@ chrome.extension.onConnect.addListener(function(port)
             movies: 'div#completeInfo h1',
             yahoomovies: '#bd div.hd h1 em',
             yahooinfo: 'h1',
-            fandango: 'div#info ul li.title'
+            fandango: 'div#info ul li.title',
+            reelviews: 'h1#review-title'
         },
         yearSelectors = {
             apple: '#view-showtimes',
             movies: 'ul#movieSpecs',
             yahoomovies: '#mvinfo div.bd ul',
-            fandango: 'div#info ul li:nth-child(2)'
+            fandango: 'div#info ul li:nth-child(2)',
+            reelviews: 'div#body-text .movie-inset-item'
         };
 
     function findYear(str)

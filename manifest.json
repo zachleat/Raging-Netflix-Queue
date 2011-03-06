@@ -12,7 +12,8 @@
     "http://www.moviefone.com/movie/",
     "http://www.movies.com/",
     "http://movies.yahoo.com/movie/",
-    "http://www.fandango.com/"
+    "http://www.fandango.com/",
+    "http://www.reelviews.net/"
   ],
   "background_page": "background.html",
   "page_action": {

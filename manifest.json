@@ -1,6 +1,6 @@
 {
   "name": "Raging Netflix Queue",
-  "version": "1.0",
+  "version": "1.1",
   "description": "A single click method to add to your netflix queue while on various sites around the web.",
   "icons": { "128": "netflix-logo.png" },
   "permissions": [

@@ -14,7 +14,8 @@
     "http://movies.yahoo.com/movie/",
     "http://www.fandango.com/",
     "http://www.reelviews.net/",
-    "http://www.metacritic.com/movie/"
+    "http://www.metacritic.com/movie/",
+    "http://instantwatcher.com/titles/"
   ],
   "background_page": "background.html",
   "page_action": {

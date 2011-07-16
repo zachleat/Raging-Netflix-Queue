@@ -21,14 +21,15 @@
     "default_title": "Add this to your Netflix Queue",
     "default_popup": "popup.html"
   },
-  "content_scripts" : [
+  "options_page": "fancy-settings/index.html",
+  "content_scripts": [
     {
-      "matches" : [
+      "matches": [
         "http://*/*"
       ],
-      "js" : ["content_script.js"],
-      "run_at" : "document_idle",
-      "all_frames" : false
+      "js": ["content_script.js"],
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ]
 }

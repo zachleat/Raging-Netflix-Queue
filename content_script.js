@@ -32,6 +32,13 @@ chrome.extension.onConnect.addListener(function(port)
             yahoomovies: '#mvinfo div.bd ul',
             fandango: 'div#info ul li:nth-child(2)',
             reelviews: 'div#body-text .movie-inset-item'
+        },
+        strippers = {
+            imdb: function(title) {
+                var tvSeriesIndex = title.toUpperCase().indexOf('(TV SERIES');
+
+                return tvSeriesIndex > -1 ? title.substr(0, tvSeriesIndex) : title; 
+            }
         };
 
     function findYear(str)
@@ -43,6 +50,9 @@ chrome.extension.onConnect.addListener(function(port)
     for(var j in titleSelectors) {
         if(titleSelectors.hasOwnProperty(j) && location.href.match(urls[j])) {
             movieTitle = document.querySelector(titleSelectors[j]).textContent;
+            if(strippers[j]) {
+                movieTitle = strippers[j](movieTitle);
+            }
             if(yearSelectors[j]) {
                 movieYear = findYear(document.querySelector(yearSelectors[j]).textContent);
             }
@@ -51,7 +61,8 @@ chrome.extension.onConnect.addListener(function(port)
     }
 
     // Sometimes the title includes the year
-    var parseTitle = movieTitle.trim().match(/([^\(]*)(?:\s\((\d{4})\))?$/);
+    var parseTitle = movieTitle.trim().match(/([^\(]*)(?:\s\([^\)]*(\d{4})[^\)]*\))?$/),
+        parseYear = movieTitle.match(/(\d{4})/);
 
     port.postMessage({
         movieTitle: (parseTitle && parseTitle.length > 1 ? parseTitle[1] : movieTitle)
@@ -60,6 +71,6 @@ chrome.extension.onConnect.addListener(function(port)
                         // FIXME Netflix has a bug where it won't do quotes inside of a name
                         .replace(/\'/, ''),
         // must be numeric
-        movieYear: movieYear || (parseTitle && parseTitle.length > 2 ? parseInt(parseTitle[2], 10) : '')
+        movieYear: movieYear || (parseYear && parseYear.length > 1 ? parseInt(parseYear[1], 10) : '')
     });
 });

@@ -1,11 +1,14 @@
 <style>
-body { min-width: 490px; }
+body { min-width: 434px; }
 #ragingNetflixQueue { width: 300px; margin: 0 auto; }
+.debug,
+.debug a { color: #ddd; }
+#NFLX_IFRAME_LAYER_SHADOW { display: none !important; }
+div#NFLX_IFRAME_LAYER { left: 8px !important; top: 8px !important; }
+div#NFLX_CLOSE_IFRAME { left: 373px !important; top: 16px !important; }
 </style>
+<script src="http://jsapi.netflix.com/us/api/js/api.js"></script>
 <script>
-// WHAT IS THIS???
-chrome.tabs.executeScript(null, {file: "content_script.js"});
-
 chrome.tabs.getSelected(null, function(tab) {
     var port = chrome.tabs.connect(tab.id);
     port.onMessage.addListener(function(response)
@@ -13,41 +16,28 @@ chrome.tabs.getSelected(null, function(tab) {
         if(response.movieTitle) {
             RagingNetflixQueue.executeSearch(response.movieTitle.trim(), response.movieYear);
         } else {
-            document.getElementById(RagingNetflixQueue.contentId).innerHTML = 'This is not a supported movie details page.';
+            document.getElementById(RagingNetflixQueue.contentId).innerHTML = 'Not a supported movie details page.';
         }
     });
 });
 
 RagingNetflixQueue = {
     lastSearch: {},
-    searchCounter: 0,
     contentId: 'ragingNetflixQueue',
     odataSearchId: 'ragingNetflixQueueOdata',
-    repeatLastSearchWithThePrefix: function()
-    {
-        var script = document.getElementById(RagingNetflixQueue.odataSearchId);
-        script.parentNode.removeChild(script);
-
-        var last = RagingNetflixQueue.lastSearch;
-        if(last.title.toLowerCase().indexOf('the') !== 0) {
-            RagingNetflixQueue.executeSearch('The ' + last.title, last.year);
-        }
-    },
     executeSearch: function(title, year)
     {
-        if(title && !document.getElementById(RagingNetflixQueue.odataSearchId) && RagingNetflixQueue.searchCounter <= 2) {
+        if(title && !document.getElementById(RagingNetflixQueue.odataSearchId)) {
             RagingNetflixQueue.lastSearch = {
                 title: title,
                 year: year
             };
 
-            RagingNetflixQueue.searchCounter++;
-
             var script = document.createElement('script');
             script.setAttribute('id', RagingNetflixQueue.odataSearchId);
             script.async = true;
             // Cedar Rapids (2011) on Rotten Tomatoes, but Netflix thought Cedar Rapids (2010)
-            script.src = 'http://odata.netflix.com/Catalog/Titles?$filter=Name eq \'' + title + '\'' +
+            script.src = 'http://odata.netflix.com/Catalog/Titles?$filter=substringof(\'' + escape(title) + '\',Name)' +
                 (year ? ' and ReleaseYear ge ' + (year - 1) + ' and ReleaseYear le ' + (year + 1) : '') + '&$format=json&$callback=RagingNetflixQueue.searchResults';
 
             document.body.appendChild(script);
@@ -61,83 +51,111 @@ RagingNetflixQueue = {
     
         if(!results.length) {
             // Debug
-            content.innerHTML = '<a href="' + document.getElementById(RagingNetflixQueue.odataSearchId).getAttribute('src') + '" target="_blank">No movies found.</a>';
-
-            RagingNetflixQueue.repeatLastSearchWithThePrefix();
+            content.innerHTML = '<div>No Movies Found.</div>' +
+                                '<ul>' + 
+                                '<li><a href="http://movies.netflix.com/WiSearch?v1=' + RagingNetflixQueue.lastSearch.title + '" target="_blank">Search on Netflix</a></li>' + 
+                                '<li class="debug"><a href="' + document.getElementById(RagingNetflixQueue.odataSearchId).getAttribute('src') + '" target="_blank">Debug API Search</a></li>' + 
+                                '</ul>';
         } else {
             // for now we only use the first result.
             results.slice(0, 1).forEach(function(result, index)
             {
-                html.push(['<a href="http://movi.es/',
-                            result.Id,
-                            '" title="',
-                            result.Name,
-                            '">',
-                            result.Name,
-                            '</a>'].join(''));
+                function getDate(nflxDate) {
+                    if(!nflxDate) {
+                        return null;
+                    }
+                    var dateMatch = /Date\((\d*)\)/,
+                        match = nflxDate.match(dateMatch);
 
-                scripts.push(result.Id);
-            });
-        
-            content.innerHTML = html.join('');
-        
-            scripts.forEach(function(id, index)
-            {
+                    return match ? new Date(parseInt(match[1], 10)) : null;
+                }
+
+// This is the code that would work is Netflix's JS API was reliable. If they
+// ever fix it, we can remove the dynamic script insertion below (the widget
+// will not be necessary).
+
+//        var instantStart = getDate(result.Instant.AvailableFrom),
+//            instantEnd = getDate(result.Instant.AvailableTo),
+//            availableInstant = result.Instant.Available ||
+//                (instantStart && instantStart < new Date || instantEnd && instantEnd > new Date),
+//            availableDisc = result.Dvd.Available || result.BluRay.Available;
+
+                content.innerHTML = ['<a href="http://movi.es/',
+                    result.Id,
+                    '" title="',
+                    result.Name,
+                    '">',
+                    result.Name,
+                    '</a>'].join('');
+
                 var script = document.createElement('script');
                 script.src = 'http://jsapi.netflix.com/us/api/w/s/sp100.js';
-                script.setAttribute('settings', 'id=http://movi.es/' + id + '&w=300&h=n&r=1');
-                script.addEventListener('load', RagingNetflixQueue.clickDefaultButton, false);
+                script.setAttribute('settings', 'id=http://movi.es/' + result.Id + '&w=300&h=n&r=1');
+                script.addEventListener('load', function()
+                {
+                    RagingNetflixQueue.clickDefaultButton(result.NetflixApiId);
+                }, false);
                 content.appendChild(script);
             });
         }
     },
-    clickDefaultButton: function()
+    clickDefaultButton: function(id)
     {
-        var widgetId = document.querySelector('#' + RagingNetflixQueue.contentId + ' > div').getAttribute('id');
+        var content = document.getElementById(RagingNetflixQueue.contentId),
+            widgetId = document.querySelector('#' + RagingNetflixQueue.contentId + ' > div').getAttribute('id');
+
         if(!widgetId) {
-            window.setTimeout(RagingNetflixQueue.clickDefaultButton, 100);
+            window.setTimeout(function()
+            {
+                RagingNetflixQueue.clickDefaultButton(id);
+            }, 100);
             return;
         }
-    
-        function isAvailable(button)
-        {
-            return !button.classList.contains('x');
-        }
-    
+
         var buttonOptions = ['save', 'add', 'play', 'later'],
-            buttons = {},
-            netflix = window[widgetId];
-    
+            buttons = {};
+
         buttonOptions.forEach(function(option)
         {
             var button = document.getElementById(widgetId + '_' + option);
-            if(isAvailable(button)) {
+            if(!button.classList.contains('x')) {
                 buttons[option] = true;
             }
         });
-    
-        if(buttons.save) {
-            netflix.f.exhi('save');
-            RagingNetflixQueue.showIframe();
+
+        var queues = localStorage['store.settings.queues'] ? JSON.parse(localStorage['store.settings.queues']) : 'instantfirst',
+            availableDisc = buttons.save || buttons.add,
+            availableInstant = buttons.later;
+
+        if(queues == 'instant' && !availableInstant) {
+            content.innerHTML = '<div>Not available for Instant Queue.</div>';
+        } else if(queues == 'dvd' && !availableDisc) {
+            content.innerHTML = '<div>Not available for DVD Queue.</div>';
+        }  else if(availableInstant && (queues == 'instant' || queues == 'instantfirst')) {
+            content.innerHTML = 'Loading...';
+            RagingNetflixQueue.addToInstantQueue(id);
             RagingNetflixQueue.watchForIframeHide();
-        } else if(buttons.later) {
-            netflix.f.exhi('later');
-            RagingNetflixQueue.showIframe();
-            RagingNetflixQueue.watchForIframeHide();
-        } else if(buttons.add) {
-            netflix.f.exhi('add');
-            RagingNetflixQueue.showIframe();
+        } else if(availableDisc && (queues == 'dvd' || queues == 'instantfirst')) {
+            content.innerHTML = 'Loading...';
+            RagingNetflixQueue.addToDiscQueue(id);
             RagingNetflixQueue.watchForIframeHide();
         }
     },
-    showIframe: function()
+    addToDiscQueue: function(id)
     {
-        // some sort of timing bug with autopositioning.
-        document.querySelector('div.nflx-iframe-container').style.top = 0;
+        RagingNetflixQueue._addToQueue(id, false);
+    },
+    addToInstantQueue: function(id)
+    {
+        RagingNetflixQueue._addToQueue(id, true);
+    },
+    _addToQueue: function(id, bInstant)
+    {
+        nflx.addToQueue('http://api.netflix.com/catalog/movie/' + id, 0, 0, 'd5zaxens5ucez89veawzmut7', bInstant ? nflx.INSTANT_Q : nflx.DVD_Q);
     },
     watchForIframeHide: function()
     {
-        if(document.querySelector('div.nflx-iframe-container').style.display == 'none') {
+        if(document.getElementById('NFLX_IFRAME_LAYER').style.display == 'none') {
             window.close();
         } else {
             window.setTimeout(RagingNetflixQueue.watchForIframeHide, 200);

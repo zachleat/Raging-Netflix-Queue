@@ -13,7 +13,8 @@
     "http://www.movies.com/",
     "http://movies.yahoo.com/movie/",
     "http://www.fandango.com/",
-    "http://www.reelviews.net/"
+    "http://www.reelviews.net/",
+    "http://www.metacritic.com/movie/"
   ],
   "background_page": "background.html",
   "page_action": {

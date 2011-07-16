@@ -12,7 +12,8 @@ chrome.extension.onConnect.addListener(function(port)
             yahoomovies: /movies\.yahoo\.com\/movie\/\d*\/video/,
             yahooinfo: /movies\.yahoo\.com\/movie\/\d*\/info/,
             fandango: /fandango\.com\/[\w\d_]*\/movieoverview/,
-            reelviews: /reelviews\.net\/php_review_template\.php/
+            reelviews: /reelviews\.net\/php_review_template\.php/,
+            metacritic: /metacritic.com\/movie\//
         },
         titleSelectors = {
             rt: 'h1.movie_title',
@@ -24,14 +25,16 @@ chrome.extension.onConnect.addListener(function(port)
             yahoomovies: '#bd div.hd h1 em',
             yahooinfo: 'h1',
             fandango: 'div#info ul li.title',
-            reelviews: 'h1#review-title'
+            reelviews: 'h1#review-title',
+            metacritic: 'div.product_title > a'
         },
         yearSelectors = {
             apple: '#view-showtimes',
             movies: 'ul#movieSpecs',
             yahoomovies: '#mvinfo div.bd ul',
             fandango: 'div#info ul li:nth-child(2)',
-            reelviews: 'div#body-text .movie-inset-item'
+            reelviews: 'div#body-text .movie-inset-item',
+            metacritic: 'li.summary_detail.release_data span.data'
         },
         strippers = {
             imdb: function(title) {
